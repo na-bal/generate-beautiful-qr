@@ -15,7 +15,17 @@
       "title": "QR-code beauty",
       "subtitle": "QR might be beautiful like you",
       "description": "One shortcut to generate QR-code",
-      "mode": "view"
+      "mode": "view",
+      "preferences": [
+        {
+          "name": "saveFolder",
+          "title": "Папка для сохранения",
+          "description": "Путь к папке, куда сохраняется QR-код",
+          "default": "~/Downloads",
+          "type": "directory",
+          "required": false
+        }
+      ]
     },
     {
       "name": "generate-QR-from-clipboard",
@@ -39,7 +49,22 @@
         "name": "qrCodeColor",
         "title": "Цвет QR-кода",
         "description": "Hex-значение цвета для QR-кода",
-        "default": "#2c3e50",
+        "default": "#000000",
+        "type": "dropdown",
+        "required": false,
+        "data": [
+          { "title": "Black", "value": "#000000" },
+          { "title": "White", "value": "#ffffff" },
+          { "title": "Red", "value": "#ff0000" },
+          { "title": "Green", "value": "#00ff00" },
+          { "title": "Blue", "value": "#0000ff" }
+        ]
+      },
+      {
+        "name": "hexColor",
+        "title": "Цвет QR-кода",
+        "description": "Hex-значение цвета для QR-кода. Если не задан, будет использован цвет из дропдауна.",
+        "default": "",
         "type": "textfield",
         "required": false
       },

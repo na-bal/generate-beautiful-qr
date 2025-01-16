@@ -1,8 +1,16 @@
 import React, { useState } from "react";
-import { ActionPanel, Form, Action, showToast, ToastStyle } from "@raycast/api";
+import { ActionPanel, Form, Action, showToast, ToastStyle, getPreferenceValues } from "@raycast/api";
 import fs from "fs";
 import path from "path";
 import QRCode from "qrcode";
+
+// Интерфейс настроек, задаваемых через Preferences
+interface Preferences {
+  saveFolder: string;
+}
+
+// Получаем настройки из Preferences
+const preferences = getPreferenceValues<Preferences>();
 
 //
 // Функция формирования имени файла по введённому тексту.
@@ -360,10 +368,14 @@ function generateQrFile(text: string, qrType: "classic" | "blob", color: string)
     try {
       const svg = qrType === "classic" ? generateClassicQrSvg(text, color) : generateMergedQrSvg(text, color);
       const baseName = generateFileName(text);
+      // Выбираем имя файла с эмодзи для демонстрации (при желании можно убрать эмодзи)
       const fileName = qrType === "classic" ? `👵qr_${baseName}.svg` : `🦆qr_${baseName}.svg`;
-      const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-      const downloadsPath = path.join(homeDir, "Downloads");
-      const filePath = path.join(downloadsPath, fileName);
+      
+      // Предполагаем, что preferences.saveFolder уже получен ранее через getPreferenceValues
+      // Если preferences.saveFolder не определён, можно использовать значение по умолчанию
+      const folder = preferences.saveFolder || (process.env.HOME || process.env.USERPROFILE || "") + "/Downloads";
+      const filePath = path.join(folder, fileName);
+      
       fs.writeFileSync(filePath, svg, "utf-8");
       console.log(`Файл успешно сохранён: ${filePath}`);
       resolve(filePath);
@@ -459,3 +471,4 @@ export default function Command() {
     </Form>
   );
 }
+

@@ -8,13 +8,20 @@ import QRCode from "qrcode";
 // Интерфейс настроек, задаваемых через Preferences
 interface Preferences {
   qrCodeType: "classic" | "blob";
-  qrCodeColor: string;
+  qrCodeColor: string;  // Выбор из дропдауна
+  hexColor: string;    // HEX-цвет, который будет иметь приоритет, если задан
   saveFolder: string;
 }
 
 // Получаем настройки из Preferences
 const preferences = getPreferenceValues<Preferences>();
 
+// Выбираем цвет: если задан HEX, то используем его, иначе используем цвет из дропдауна
+const effectiveColor = preferences.hexColor && preferences.hexColor.trim() !== ""
+  ? preferences.hexColor
+  : preferences.qrCodeColor || "#2c3e50";
+
+console.log("Effective Color:", effectiveColor);
 /**
  * Формирует имя файла по входному тексту.
  * Если текст больше 50 символов, берутся первые 30 и последние 20 символов после очистки.
@@ -344,10 +351,12 @@ function generateQrFile(text: string, qrType: "classic" | "blob", color: string)
 export default function GenerateFromClipboardCommand() {
   // Получаем настройки из Preferences
   const [qrType] = useState<"classic" | "blob">(preferences.qrCodeType || "blob");
-  const [effectiveColor] = useState<string>(preferences.qrCodeColor || "#2c3e50");
+  const [color] = useState<string>(effectiveColor);
   const saveFolder = preferences.saveFolder || (process.env.HOME || process.env.USERPROFILE || "") + "/Downloads";
 
   useEffect(() => {
+    let mounted = true;
+
     async function run() {
       try {
         const text = await Clipboard.readText();
@@ -355,14 +364,24 @@ export default function GenerateFromClipboardCommand() {
           await showHUD("Ошибка: Буфер обмена пуст");
           return;
         }
-        const filePath = await generateQrFile(text, qrType, effectiveColor);
-        await showHUD(`Сохранено: ${filePath}`);
+        if (mounted) {
+          const filePath = await generateQrFile(text, qrType, color);
+          await showHUD(`Сохранено: ${filePath}`);
+          await console.log(color);
+        }
       } catch (error: any) {
-        await showHUD(`Ошибка: ${error.message}`);
+        if (mounted) {
+          await showHUD(`Ошибка: ${error.message}`);
+        }
       }
     }
+
     run();
-  }, [qrType, effectiveColor, saveFolder]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [qrType, color, saveFolder]);
 
   return null;
 }
