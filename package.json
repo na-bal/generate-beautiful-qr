@@ -1,0 +1,86 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "test",
+  "title": "test",
+  "description": "Just test",
+  "icon": "extension-icon.png",
+  "author": "alexander.bedelev",
+  "categories": [
+    "Other"
+  ],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "test",
+      "title": "QR-code beauty",
+      "subtitle": "QR might be beautiful like you",
+      "description": "One shortcut to generate QR-code",
+      "mode": "view"
+    },
+    {
+      "name": "generate-QR-from-clipboard",
+      "title": "QR-code from clipboard",
+      "description": "Generate QR-code from clipboard",
+      "mode": "view",
+      "preferences": [
+      {
+        "name": "qrCodeType",
+        "title": "Тип QR-кода",
+        "description": "Выберите тип QR-кода: classic или blob",
+        "default": "blob",
+        "type": "dropdown",
+        "required": false,
+        "data": [
+          { "title": "Classic", "value": "classic" },
+          { "title": "Blob", "value": "blob" }
+        ]
+      },
+      {
+        "name": "qrCodeColor",
+        "title": "Цвет QR-кода",
+        "description": "Hex-значение цвета для QR-кода",
+        "default": "#2c3e50",
+        "type": "textfield",
+        "required": false
+      },
+      {
+        "name": "saveFolder",
+        "title": "Папка для сохранения",
+        "description": "Путь к папке, куда сохраняется QR-код",
+        "default": "~/Downloads",
+        "type": "directory",
+        "required": false
+      }
+      ]
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.86.1",
+    "@raycast/utils": "^1.17.0",
+    "@svgdotjs/svg.js": "^3.2.4",
+    "awesome-qr": "^2.1.5-rc.0",
+    "canvas": "^3.0.1",
+    "jsdom": "^26.0.0",
+    "marchingsquares": "^1.3.3",
+    "qr-code-styling": "^1.9.0",
+    "qrcode": "^1.5.4",
+    "svg-path-parser": "^1.1.0",
+    "xml-js": "^1.6.11"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^1.0.11",
+    "@types/node": "20.8.10",
+    "@types/react": "18.3.3",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.4.5"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "prepublishOnly": "echo \"\\n\\nIt seems like you are trying to publish the Raycast extension to npm.\\n\\nIf you did intend to publish it to npm, remove the \\`prepublishOnly\\` script and rerun \\`npm publish\\` again.\\nIf you wanted to publish it to the Raycast Store instead, use \\`npm run publish\\` instead.\\n\\n\" && exit 1",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
