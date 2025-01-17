@@ -1,8 +1,8 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "test",
-  "title": "test",
-  "description": "Just test",
+  "name": "generate-beautiful-QR",
+  "title": "QR-code generator",
+  "description": "Fast and beautiful QR-code generator",
   "icon": "extension-icon.png",
   "author": "alexander.bedelev",
   "categories": [
@@ -11,7 +11,7 @@
   "license": "MIT",
   "commands": [
     {
-      "name": "test",
+      "name": "generate-beautiful-QR",
       "title": "QR-code beauty",
       "subtitle": "QR might be beautiful like you",
       "description": "One shortcut to generate QR-code",
@@ -31,7 +31,7 @@
       "name": "generate-QR-from-clipboard",
       "title": "QR-code from clipboard",
       "description": "Generate QR-code from clipboard",
-      "mode": "view",
+      "mode": "no-view",
       "preferences": [
       {
         "name": "qrCodeType",
@@ -49,15 +49,16 @@
         "name": "qrCodeColor",
         "title": "Цвет QR-кода",
         "description": "Hex-значение цвета для QR-кода",
-        "default": "#000000",
+        "default": "#2c3e50",
         "type": "dropdown",
         "required": false,
         "data": [
-          { "title": "Black", "value": "#000000" },
-          { "title": "White", "value": "#ffffff" },
-          { "title": "Red", "value": "#ff0000" },
-          { "title": "Green", "value": "#00ff00" },
-          { "title": "Blue", "value": "#0000ff" }
+          { "title": "🌑 Midnight Blue", "value": "#2c3e50" },
+          { "title": "🐦‍⬛ Just Black", "value": "#000000" },
+          { "title": "💜 Deep Purple", "value": "#8e44ad" },
+          { "title": "🌿 Emerald", "value": "#2ecc71" },
+          { "title": "🍊 Vibrant Orange", "value": "#e67e22" },
+          { "title": "🦚 Turquoise", "value": "#1abc9c" }
         ]
       },
       {
@@ -65,6 +66,7 @@
         "title": "Цвет QR-кода",
         "description": "Hex-значение цвета для QR-кода. Если не задан, будет использован цвет из дропдауна.",
         "default": "",
+        "placeholder": "#1abc9c",
         "type": "textfield",
         "required": false
       },

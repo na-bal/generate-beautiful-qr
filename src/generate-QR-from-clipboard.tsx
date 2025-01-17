@@ -1,9 +1,17 @@
-// generate-QR-from-clipboard.tsx
-import React, { useEffect, useState } from "react";
+// generate-QR-from-clipboard.ts
+
+// ★ Изменение: Убрали импорт React, так как в no-view режиме он не нужен.
 import { getPreferenceValues, Clipboard, showHUD, ToastStyle } from "@raycast/api";
 import fs from "fs";
 import path from "path";
 import QRCode from "qrcode";
+
+// ★ Изменение: Убрана зависимость от хуков (useState, useEffect).
+
+// Функция проверки валидности hex-цвета (оставляем без изменений)
+function isValidHexColor(hex: string): boolean {
+  return /^#(?:[0-9A-Fa-f]{3}){1,2}$/.test(hex.trim());
+}
 
 // Интерфейс настроек, задаваемых через Preferences
 interface Preferences {
@@ -17,11 +25,13 @@ interface Preferences {
 const preferences = getPreferenceValues<Preferences>();
 
 // Выбираем цвет: если задан HEX, то используем его, иначе используем цвет из дропдауна
-const effectiveColor = preferences.hexColor && preferences.hexColor.trim() !== ""
-  ? preferences.hexColor
-  : preferences.qrCodeColor || "#2c3e50";
+const effectiveColor =
+  preferences.hexColor && preferences.hexColor.trim() !== ""
+    ? preferences.hexColor
+    : preferences.qrCodeColor || "#2c3e50";
 
 console.log("Effective Color:", effectiveColor);
+
 /**
  * Формирует имя файла по входному тексту.
  * Если текст больше 50 символов, берутся первые 30 и последние 20 символов после очистки.
@@ -344,44 +354,34 @@ function generateQrFile(text: string, qrType: "classic" | "blob", color: string)
 }
 
 /**
- * Компонент команды, который автоматически считывает текст из буфера обмена и генерирует QR-код.
- * Все настройки (тип QR, цвет, папка) задаются через Preferences.
- * Режим работы: no-view.
+ * ★ Основная асинхронная функция команды для режима no-view.
+ * В данном случае отсутствует рендер компонентов и использование хуков.
  */
-export default function GenerateFromClipboardCommand() {
-  // Получаем настройки из Preferences
-  const [qrType] = useState<"classic" | "blob">(preferences.qrCodeType || "blob");
-  const [color] = useState<string>(effectiveColor);
-  const saveFolder = preferences.saveFolder || (process.env.HOME || process.env.USERPROFILE || "") + "/Downloads";
-
-  useEffect(() => {
-    let mounted = true;
-
-    async function run() {
-      try {
-        const text = await Clipboard.readText();
-        if (!text) {
-          await showHUD("Ошибка: Буфер обмена пуст");
-          return;
-        }
-        if (mounted) {
-          const filePath = await generateQrFile(text, qrType, color);
-          await showHUD(`Сохранено: ${filePath}`);
-          await console.log(color);
-        }
-      } catch (error: any) {
-        if (mounted) {
-          await showHUD(`Ошибка: ${error.message}`);
-        }
-      }
+async function main() {
+  try {
+    const text = await Clipboard.readText();
+    if (!text) {
+      await showHUD("Ошибка: Буфер обмена пуст");
+      return;
     }
-
-    run();
-
-    return () => {
-      mounted = false;
-    };
-  }, [qrType, color, saveFolder]);
-
-  return null;
+    
+    // Проверка валидности HEX-цвета из настроек
+    if (preferences.hexColor.trim() !== "" && !isValidHexColor(preferences.hexColor)) {
+      await showHUD("Ошибка: Некорректное HEX-значение. Проверьте настройки. Должно быть в формате #1abc9c");
+      return;
+    }
+    
+    const filePath = await generateQrFile(text, preferences.qrCodeType || "blob", effectiveColor);
+    await showHUD(`Сохранено: ${filePath}`);
+    console.log("Effective Color:", effectiveColor);
+  } catch (error: any) {
+    await showHUD(`Ошибка: ${error.message}`);
+  }
 }
+
+// ★ Основное отличие: запускаем main() немедленно.
+// В режиме no-view окно не отображается, поэтому возвращать UI не нужно.
+// main();
+
+// ★ Экспортируем main как default, чтобы Raycast мог запустить команду.
+export default main;

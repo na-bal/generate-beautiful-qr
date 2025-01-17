@@ -4,6 +4,12 @@ import fs from "fs";
 import path from "path";
 import QRCode from "qrcode";
 
+// Функция проверки валидности hex-цвета
+function isValidHexColor(hex: string): boolean {
+  // Принимаем значения типа "#abc" или "#a1b2c3"
+  return /^#(?:[0-9A-Fa-f]{3}){1,2}$/.test(hex.trim());
+}
+
 // Интерфейс настроек, задаваемых через Preferences
 interface Preferences {
   saveFolder: string;
@@ -394,9 +400,10 @@ export default function Command() {
   const [qrType, setQrType] = useState<"classic" | "blob">("blob");
   
   // Предустановленные опции цветов — модные варианты
-  type PresetOption = "MidnightBlue" | "DeepPurple" | "Emerald" | "VibrantOrange" | "Turquoise";
+  type PresetOption = "MidnightBlue" | "JustBlack" | "DeepPurple" | "Emerald" | "VibrantOrange" | "Turquoise";
   const presetOptions: { [key in PresetOption]: string } = {
     MidnightBlue: "#2c3e50",
+    JustBlack: "#000000",
     DeepPurple: "#8e44ad",
     Emerald: "#2ecc71",
     VibrantOrange: "#e67e22",
@@ -416,6 +423,13 @@ export default function Command() {
       await showToast(ToastStyle.Failure, "Ошибка", "Поле ввода не должно быть пустым.");
       return;
     }
+    
+    // Если пользователь ввёл значение customColor, проверяем его валидность
+    if (customColor.trim() !== "" && !isValidHexColor(customColor)) {
+      await showToast(ToastStyle.Failure, "Ошибка", "Пожалуйста, введите корректное hex-значение (например, #1abc9c).");
+      return;
+    }
+    
     try {
       const filePath = await generateQrFile(input, qrType, effectiveColor);
       await showToast(ToastStyle.Success, "Успех!", `Сохранено: ${filePath}`);
@@ -455,16 +469,18 @@ export default function Command() {
         value={presetOption}
         onChange={(val) => setPresetOption(val as PresetOption)}
       >
-        <Form.Dropdown.Item value="MidnightBlue" title="Midnight Blue" />
-        <Form.Dropdown.Item value="DeepPurple" title="Deep Purple" />
-        <Form.Dropdown.Item value="Emerald" title="Emerald" />
-        <Form.Dropdown.Item value="VibrantOrange" title="Vibrant Orange" />
-        <Form.Dropdown.Item value="Turquoise" title="Turquoise" />
+        <Form.Dropdown.Item value="MidnightBlue" title="🌑 Midnight Blue" />
+        <Form.Dropdown.Item value="JustBlack" title="🐦‍⬛ Just Black" />
+        <Form.Dropdown.Item value="DeepPurple" title="💜 Deep Purple" />
+        <Form.Dropdown.Item value="Emerald" title="🌿 Emerald" />
+        <Form.Dropdown.Item value="VibrantOrange" title="🍊 Vibrant Orange" />
+        <Form.Dropdown.Item value="Turquoise" title="🦚 Turquoise" />
       </Form.Dropdown>
       <Form.TextField
         id="customColor"
         title="Пользовательский цвет (hex)"
-        placeholder="Если задан, имеет приоритет"
+        info="Если задан, имеет приоритет"
+        placeholder="#1abc9c"
         value={customColor}
         onChange={setCustomColor}
       />
