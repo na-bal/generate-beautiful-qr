@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { ActionPanel, Form, Action, showToast, ToastStyle, getPreferenceValues } from "@raycast/api";
+import React, { useEffect, useState } from "react";
+import { ActionPanel, Form, Action, showToast, ToastStyle, getPreferenceValues, Clipboard } from "@raycast/api";
 import fs from "fs";
 import path from "path";
 import QRCode from "qrcode";
@@ -418,6 +418,17 @@ export default function Command() {
   // Итоговый эффективный цвет: если customColor не пустой, он имеет приоритет
   const effectiveColor = customColor.trim() !== "" ? customColor.trim() : presetOptions[presetOption];
 
+  // ★ Добавленный useEffect для автоматической вставки текста из буфера обмена
+  useEffect(() => {
+    async function loadClipboardText() {
+      const text = await Clipboard.readText();
+      if (text && text.length <= 500) {
+        setInput(text);
+      }
+    }
+    loadClipboardText();
+  }, []);
+
   const handleSubmit = async () => {
     if (!input) {
       await showToast(ToastStyle.Failure, "Ошибка", "Поле ввода не должно быть пустым.");
@@ -456,15 +467,17 @@ export default function Command() {
       />
       <Form.Dropdown
         label="Тип QR-кода"
+        title="Тип QR-кода"
         id="qrType"
         value={qrType}
         onChange={(val) => setQrType(val as "classic" | "blob")}
       >
-        <Form.Dropdown.Item value="classic" title="Классический" />
-        <Form.Dropdown.Item value="blob" title="Blob" />
+        <Form.Dropdown.Item value="classic" title="👵 Classic square" />
+        <Form.Dropdown.Item value="blob" title="🦆 Blob and rounded" />
       </Form.Dropdown>
       <Form.Dropdown
         label="Предустановленный цвет"
+        title="Предустановленный цвет"
         id="presetColor"
         value={presetOption}
         onChange={(val) => setPresetOption(val as PresetOption)}
