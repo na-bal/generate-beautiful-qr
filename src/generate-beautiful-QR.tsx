@@ -32,15 +32,9 @@ const preferences = getPreferenceValues<Preferences>();
  * @returns {string} Sanitized filename
  */
 function generateFileName(inputText: string): string {
-  // Remove http:// and https:// from text
   const withoutProtocol = inputText.replace(/^(https?:\/\/)/i, "");
-  // Clean invalid characters
-  const sanitized = withoutProtocol.replace(/[<>:"/\\|?*\x00-\x1F]/g, "_");
-  
-  if (sanitized.length <= 50) {
-    return sanitized;
-  }
-  return sanitized.substring(0, 30) + sanitized.substring(sanitized.length - 20);
+  const sanitized = withoutProtocol.replace(/[<>:"/\\|?*\s]/g, "_");
+  return sanitized.length <= 50 ? sanitized : sanitized.substring(0, 30) + sanitized.substring(sanitized.length - 20);
 }
 
 /**
@@ -72,18 +66,14 @@ function generateClassicQrSvg(text: string, color: string): string {
   const moduleSize = 30;
   const size = matrix.length * moduleSize;
   const svgParts: string[] = [];
-  svgParts.push(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges">`
-  );
+  svgParts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges">`);
   svgParts.push(`<rect width="${size}" height="${size}" fill="#FFFFFF"/>`);
   for (let row = 0; row < matrix.length; row++) {
     for (let col = 0; col < matrix[row].length; col++) {
       if (matrix[row][col]) {
         const x = col * moduleSize;
         const y = row * moduleSize;
-        svgParts.push(
-          `<rect x="${x}" y="${y}" width="${moduleSize}" height="${moduleSize}" fill="${color}" />`
-        );
+        svgParts.push(`<rect x="${x}" y="${y}" width="${moduleSize}" height="${moduleSize}" fill="${color}" />`);
       }
     }
   }
@@ -150,8 +140,11 @@ function mergeContiguousCellsWithCells(matrix: boolean[][]): { cells: { row: num
  * @param {number} moduleSize - Size of each module
  * @returns {Array<{x: number, y: number}>} Contour points
  */
-function generatePathPointsForGroup(groupCells: { row: number; col: number }[], moduleSize: number): { x: number; y: number }[] {
-  const cellSet = new Set(groupCells.map(cell => `${cell.row},${cell.col}`));
+function generatePathPointsForGroup(
+  groupCells: { row: number; col: number }[],
+  moduleSize: number,
+): { x: number; y: number }[] {
+  const cellSet = new Set(groupCells.map((cell) => `${cell.row},${cell.col}`));
   type Point = { x: number; y: number };
   type Segment = { start: Point; end: Point };
   const segments: Segment[] = [];
@@ -172,7 +165,7 @@ function generatePathPointsForGroup(groupCells: { row: number; col: number }[], 
     }
   });
   const segmentMap = new Map<string, Segment[]>();
-  segments.forEach(seg => {
+  segments.forEach((seg) => {
     const key = `${seg.start.x},${seg.start.y}`;
     if (!segmentMap.has(key)) {
       segmentMap.set(key, []);
@@ -180,7 +173,7 @@ function generatePathPointsForGroup(groupCells: { row: number; col: number }[], 
     segmentMap.get(key)!.push(seg);
   });
   if (segments.length === 0) return [];
-  let currentSegment = segments[0];
+  const currentSegment = segments[0];
   const pathPoints: { x: number; y: number }[] = [currentSegment.start, currentSegment.end];
   const used = new Set<Segment>();
   used.add(currentSegment);
@@ -231,14 +224,12 @@ function roundPolygon(points: { x: number; y: number }[], smoothingRadius: numbe
     const v2 = { x: next.x - curr.x, y: next.y - curr.y };
     const lenV1 = Math.hypot(v1.x, v1.y);
     const lenV2 = Math.hypot(v2.x, v2.y);
-    const r1 = (lenV1 > epsilon) ? Math.max(minOffset, Math.min(smoothingRadius, lenV1 / 2)) : smoothingRadius;
-    const r2 = (lenV2 > epsilon) ? Math.max(minOffset, Math.min(smoothingRadius, lenV2 / 2)) : smoothingRadius;
-    const p1 = (lenV1 > epsilon)
-      ? { x: curr.x - (v1.x / lenV1) * r1, y: curr.y - (v1.y / lenV1) * r1 }
-      : { x: curr.x, y: curr.y };
-    const p2 = (lenV2 > epsilon)
-      ? { x: curr.x + (v2.x / lenV2) * r2, y: curr.y + (v2.y / lenV2) * r2 }
-      : { x: curr.x, y: curr.y };
+    const r1 = lenV1 > epsilon ? Math.max(minOffset, Math.min(smoothingRadius, lenV1 / 2)) : smoothingRadius;
+    const r2 = lenV2 > epsilon ? Math.max(minOffset, Math.min(smoothingRadius, lenV2 / 2)) : smoothingRadius;
+    const p1 =
+      lenV1 > epsilon ? { x: curr.x - (v1.x / lenV1) * r1, y: curr.y - (v1.y / lenV1) * r1 } : { x: curr.x, y: curr.y };
+    const p2 =
+      lenV2 > epsilon ? { x: curr.x + (v2.x / lenV2) * r2, y: curr.y + (v2.y / lenV2) * r2 } : { x: curr.x, y: curr.y };
     if (i === 0) {
       d += `M${p1.x},${p1.y} `;
     }
@@ -256,12 +247,19 @@ function roundPolygon(points: { x: number; y: number }[], smoothingRadius: numbe
  * @param {number} moduleSize - Size of each module
  * @returns {string[]} Array of SVG path strings
  */
-function getHolesForGroup(groupCells: { row: number; col: number }[], matrix: boolean[][], moduleSize: number): string[] {
+function getHolesForGroup(
+  groupCells: { row: number; col: number }[],
+  matrix: boolean[][],
+  moduleSize: number,
+): string[] {
   const rows = matrix.length;
   const cols = matrix[0].length;
-  const groupSet = new Set(groupCells.map(cell => `${cell.row},${cell.col}`));
-  let minRow = Infinity, maxRow = -Infinity, minCol = Infinity, maxCol = -Infinity;
-  groupCells.forEach(cell => {
+  const groupSet = new Set(groupCells.map((cell) => `${cell.row},${cell.col}`));
+  let minRow = Infinity,
+    maxRow = -Infinity,
+    minCol = Infinity,
+    maxCol = -Infinity;
+  groupCells.forEach((cell) => {
     if (cell.row < minRow) minRow = cell.row;
     if (cell.row > maxRow) maxRow = cell.row;
     if (cell.col < minCol) minCol = cell.col;
@@ -358,7 +356,7 @@ function generateMergedQrSvg(text: string, color: string): string {
   const svgParts: string[] = [];
   svgParts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges">`);
   svgParts.push(`<rect width="${size}" height="${size}" fill="#FFFFFF"/>`);
-  
+
   groups.forEach((group) => {
     // Get outer contour for the group (smoothed)
     const rawPoints = generatePathPointsForGroup(group.cells, moduleSize);
@@ -370,7 +368,7 @@ function generateMergedQrSvg(text: string, color: string): string {
     const combinedPath = outerPath + " " + holesPaths.join(" ");
     svgParts.push(`<path d="${combinedPath}" fill="${color}" />`);
   });
-  
+
   // Overlay white modules on top according to the original matrix,
   // to restore areas that should originally be white background.
   const matrixData = generateMatrix(text);
@@ -383,13 +381,13 @@ function generateMergedQrSvg(text: string, color: string): string {
       }
     }
   }
-  
+
   // Draw finder patterns (eyes) with the selected color
   const finderSize = 7;
   svgParts.push(drawFinderPattern(0, 0, moduleSize, finderSize, color));
   svgParts.push(drawFinderPattern(size - finderSize * moduleSize, 0, moduleSize, finderSize, color));
   svgParts.push(drawFinderPattern(0, size - finderSize * moduleSize, moduleSize, finderSize, color));
-  
+
   svgParts.push(`</svg>`);
   return svgParts.join("");
 }
@@ -401,24 +399,23 @@ function generateMergedQrSvg(text: string, color: string): string {
  * @param {string} color - Color for QR code
  * @returns {Promise<string>} Path to saved file
  */
-function generateQrFile(text: string, qrType: "classic" | "blob", color: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    try {
-      const svg = qrType === "classic" ? generateClassicQrSvg(text, color) : generateMergedQrSvg(text, color);
-      const baseName = generateFileName(text);
-      const fileName = qrType === "classic" ? `👵qr_${baseName}.svg` : `🦆qr_${baseName}.svg`;
-    
-      // If preferences.saveFolder is not defined, use default value
-      const folder = preferences.saveFolder || (process.env.HOME || process.env.USERPROFILE || "") + "/Downloads";
-      const filePath = path.join(folder, fileName);
-      
-      fs.writeFileSync(filePath, svg, "utf-8");
-      resolve(filePath);
-    } catch (error: any) {
-      console.error("Error creating QR code:", error);
-      reject(new Error("Failed to create QR code."));
-    }
-  });
+async function generateQrFile(text: string, qrType: "classic" | "blob", color: string): Promise<string> {
+  try {
+    const svg = qrType === "classic" ? generateClassicQrSvg(text, color) : generateMergedQrSvg(text, color);
+    const baseName = generateFileName(text);
+    const fileName = qrType === "classic" ? `👵qr_${baseName}.svg` : `🦆qr_${baseName}.svg`;
+
+    // If preferences.saveFolder is not defined, use default value
+    const folder = preferences.saveFolder || (process.env.HOME || process.env.USERPROFILE || "") + "/Downloads";
+    const filePath = path.join(folder, fileName);
+
+    fs.writeFileSync(filePath, svg, "utf-8");
+    await showToast(ToastStyle.Success, "Copy to Clipboard", "QR code has been copied to clipboard");
+    return filePath;
+  } catch (error: unknown) {
+    console.error("Error creating QR code:", error);
+    throw new Error("Failed to create QR code.");
+  }
 }
 
 /**
@@ -429,7 +426,7 @@ function generateQrFile(text: string, qrType: "classic" | "blob", color: string)
 export default function Command() {
   const [input, setInput] = useState("");
   const [qrType, setQrType] = useState<"classic" | "blob">("blob");
-  
+
   /**
    * Predefined color options for QR code
    * @type {Object.<PresetOption, string>}
@@ -443,7 +440,7 @@ export default function Command() {
     VibrantOrange: "#e67e22",
     Turquoise: "#1abc9c",
   };
-  
+
   // Field for custom color (custom)
   const [customColor, setCustomColor] = useState("");
   // Dropdown list with preset colors
@@ -468,19 +465,19 @@ export default function Command() {
       await showToast(ToastStyle.Failure, "Error", "Input field cannot be empty.");
       return;
     }
-    
+
     // If user entered value customColor, check its validity
     if (customColor.trim() !== "" && !isValidHexColor(customColor)) {
       await showToast(ToastStyle.Failure, "Error", "Please enter a valid hex color (e.g., #1abc9c).");
       return;
     }
-    
+
     try {
       const filePath = await generateQrFile(input, qrType, effectiveColor);
       await showToast(ToastStyle.Success, "Saved to:", filePath);
-    } catch (err: any) {
-      console.error("Error in handleSubmit:", err);
-      await showToast(ToastStyle.Failure, "Error", err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : "An unknown error occurred";
+      await showToast(ToastStyle.Failure, "Error", errorMessage);
     }
   };
 
@@ -488,7 +485,7 @@ export default function Command() {
     <Form
       actions={
         <ActionPanel>
-          <Action title="Generate QR Code" onAction={handleSubmit} />
+          <Action title="Generate Qr Code" onAction={handleSubmit} />
         </ActionPanel>
       }
     >
@@ -499,12 +496,7 @@ export default function Command() {
         value={input}
         onChange={setInput}
       />
-      <Form.Dropdown
-        title="Shape"
-        id="qrType"
-        value={qrType}
-        onChange={(val) => setQrType(val as "classic" | "blob")}
-      >
+      <Form.Dropdown title="Shape" id="qrType" value={qrType} onChange={(val) => setQrType(val as "classic" | "blob")}>
         <Form.Dropdown.Item value="classic" title="👵 Classic Square" />
         <Form.Dropdown.Item value="blob" title="🦆 Blob and Rounded" />
       </Form.Dropdown>
@@ -532,4 +524,3 @@ export default function Command() {
     </Form>
   );
 }
-

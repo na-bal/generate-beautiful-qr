@@ -1,4 +1,4 @@
-import { getPreferenceValues, Clipboard, showHUD, showToast, ToastStyle } from "@raycast/api";
+import { getPreferenceValues, Clipboard, showToast, ToastStyle } from "@raycast/api";
 import fs from "fs";
 import path from "path";
 import QRCode from "qrcode";
@@ -41,7 +41,7 @@ const effectiveColor =
  */
 function generateFileName(inputText: string): string {
   const withoutProtocol = inputText.replace(/^(https?:\/\/)/i, "");
-  const sanitized = withoutProtocol.replace(/[<>:"/\\|?*\x00-\x1F]/g, "_");
+  const sanitized = withoutProtocol.replace(/[<>:"/\\|?*\s]/g, "_");
   return sanitized.length <= 50 ? sanitized : sanitized.substring(0, 30) + sanitized.substring(sanitized.length - 20);
 }
 
@@ -115,7 +115,14 @@ function mergeContiguousCellsWithCells(matrix: boolean[][]): { cells: { row: num
       for (const { dr, dc } of directions) {
         const newRow = row + dr;
         const newCol = col + dc;
-        if (newRow >= 0 && newRow < rows && newCol >= 0 && newCol < cols && matrix[newRow][newCol] && !visited[newRow][newCol]) {
+        if (
+          newRow >= 0 &&
+          newRow < rows &&
+          newCol >= 0 &&
+          newCol < cols &&
+          matrix[newRow][newCol] &&
+          !visited[newRow][newCol]
+        ) {
           visited[newRow][newCol] = true;
           stack.push({ row: newRow, col: newCol });
         }
@@ -141,8 +148,11 @@ function mergeContiguousCellsWithCells(matrix: boolean[][]): { cells: { row: num
  * @param {number} moduleSize - Size of each module
  * @returns {Array<{x: number, y: number}>} Contour points
  */
-function generatePathPointsForGroup(groupCells: { row: number; col: number }[], moduleSize: number): { x: number; y: number }[] {
-  const cellSet = new Set(groupCells.map(cell => `${cell.row},${cell.col}`));
+function generatePathPointsForGroup(
+  groupCells: { row: number; col: number }[],
+  moduleSize: number,
+): { x: number; y: number }[] {
+  const cellSet = new Set(groupCells.map((cell) => `${cell.row},${cell.col}`));
   type Point = { x: number; y: number };
   type Segment = { start: Point; end: Point };
   const segments: Segment[] = [];
@@ -150,12 +160,14 @@ function generatePathPointsForGroup(groupCells: { row: number; col: number }[], 
     const x = col * moduleSize;
     const y = row * moduleSize;
     if (!cellSet.has(`${row - 1},${col}`)) segments.push({ start: { x, y }, end: { x: x + moduleSize, y } });
-    if (!cellSet.has(`${row},${col + 1}`)) segments.push({ start: { x: x + moduleSize, y }, end: { x: x + moduleSize, y: y + moduleSize } });
-    if (!cellSet.has(`${row + 1},${col}`)) segments.push({ start: { x: x + moduleSize, y: y + moduleSize }, end: { x, y: y + moduleSize } });
+    if (!cellSet.has(`${row},${col + 1}`))
+      segments.push({ start: { x: x + moduleSize, y }, end: { x: x + moduleSize, y: y + moduleSize } });
+    if (!cellSet.has(`${row + 1},${col}`))
+      segments.push({ start: { x: x + moduleSize, y: y + moduleSize }, end: { x, y: y + moduleSize } });
     if (!cellSet.has(`${row},${col - 1}`)) segments.push({ start: { x, y: y + moduleSize }, end: { x, y } });
   });
   const segmentMap = new Map<string, Segment[]>();
-  segments.forEach(seg => {
+  segments.forEach((seg) => {
     const key = `${seg.start.x},${seg.start.y}`;
     if (!segmentMap.has(key)) {
       segmentMap.set(key, []);
@@ -163,7 +175,7 @@ function generatePathPointsForGroup(groupCells: { row: number; col: number }[], 
     segmentMap.get(key)!.push(seg);
   });
   if (segments.length === 0) return [];
-  let currentSegment = segments[0];
+  const currentSegment = segments[0];
   const pathPoints: Point[] = [currentSegment.start, currentSegment.end];
   const used = new Set<Segment>();
   used.add(currentSegment);
@@ -211,8 +223,10 @@ function roundPolygon(points: { x: number; y: number }[], smoothingRadius: numbe
     const lenV2 = Math.hypot(v2.x, v2.y);
     const r1 = lenV1 > epsilon ? Math.max(minOffset, Math.min(smoothingRadius, lenV1 / 2)) : smoothingRadius;
     const r2 = lenV2 > epsilon ? Math.max(minOffset, Math.min(smoothingRadius, lenV2 / 2)) : smoothingRadius;
-    const p1 = lenV1 > epsilon ? { x: curr.x - (v1.x / lenV1) * r1, y: curr.y - (v1.y / lenV1) * r1 } : { x: curr.x, y: curr.y };
-    const p2 = lenV2 > epsilon ? { x: curr.x + (v2.x / lenV2) * r2, y: curr.y + (v2.y / lenV2) * r2 } : { x: curr.x, y: curr.y };
+    const p1 =
+      lenV1 > epsilon ? { x: curr.x - (v1.x / lenV1) * r1, y: curr.y - (v1.y / lenV1) * r1 } : { x: curr.x, y: curr.y };
+    const p2 =
+      lenV2 > epsilon ? { x: curr.x + (v2.x / lenV2) * r2, y: curr.y + (v2.y / lenV2) * r2 } : { x: curr.x, y: curr.y };
     if (i === 0) {
       d += `M${p1.x},${p1.y} `;
     }
@@ -230,12 +244,19 @@ function roundPolygon(points: { x: number; y: number }[], smoothingRadius: numbe
  * @param {number} moduleSize - Size of each module
  * @returns {string[]} Array of SVG path strings
  */
-function getHolesForGroup(groupCells: { row: number; col: number }[], matrix: boolean[][], moduleSize: number): string[] {
+function getHolesForGroup(
+  groupCells: { row: number; col: number }[],
+  matrix: boolean[][],
+  moduleSize: number,
+): string[] {
   const rows = matrix.length;
   const cols = matrix[0].length;
-  const groupSet = new Set(groupCells.map(cell => `${cell.row},${cell.col}`));
-  let minRow = Infinity, maxRow = -Infinity, minCol = Infinity, maxCol = -Infinity;
-  groupCells.forEach(cell => {
+  const groupSet = new Set(groupCells.map((cell) => `${cell.row},${cell.col}`));
+  let minRow = Infinity,
+    maxRow = -Infinity,
+    minCol = Infinity,
+    maxCol = -Infinity;
+  groupCells.forEach((cell) => {
     if (cell.row < minRow) minRow = cell.row;
     if (cell.row > maxRow) maxRow = cell.row;
     if (cell.col < minCol) minCol = cell.col;
@@ -331,7 +352,7 @@ function generateMergedQrSvg(text: string, color: string): string {
   const svgParts: string[] = [];
   svgParts.push(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges">`);
   svgParts.push(`<rect width="${size}" height="${size}" fill="#FFFFFF"/>`);
-  
+
   groups.forEach((group) => {
     const rawPoints = generatePathPointsForGroup(group.cells, moduleSize);
     const smoothingRadius = moduleSize * 0.3;
@@ -340,7 +361,7 @@ function generateMergedQrSvg(text: string, color: string): string {
     const combinedPath = outerPath + " " + holesPaths.join(" ");
     svgParts.push(`<path d="${combinedPath}" fill="${color}" />`);
   });
-  
+
   const matrixData = generateMatrix(text);
   for (let row = 0; row < matrixData.length; row++) {
     for (let col = 0; col < matrixData[row].length; col++) {
@@ -351,12 +372,12 @@ function generateMergedQrSvg(text: string, color: string): string {
       }
     }
   }
-  
+
   const finderSize = 7;
   svgParts.push(drawFinderPattern(0, 0, moduleSize, finderSize, color));
   svgParts.push(drawFinderPattern(size - finderSize * moduleSize, 0, moduleSize, finderSize, color));
   svgParts.push(drawFinderPattern(0, size - finderSize * moduleSize, moduleSize, finderSize, color));
-  
+
   svgParts.push(`</svg>`);
   return svgParts.join("");
 }
@@ -378,7 +399,7 @@ function generateQrFile(text: string, qrType: "classic" | "blob", color: string)
       const filePath = path.join(downloadsPath, fileName);
       fs.writeFileSync(filePath, svg, "utf-8");
       resolve(filePath);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating QR code:", error);
       reject(new Error("Failed to create QR code."));
     }
@@ -397,17 +418,17 @@ async function main() {
       await showToast(ToastStyle.Failure, "Clipboard is empty", "Please copy some text before running this command.");
       return;
     }
-    
-    // Check validity of HEX color from settings
+
     if (preferences.hexColor.trim() !== "" && !isValidHexColor(preferences.hexColor)) {
       await showToast(ToastStyle.Failure, "Error. Invalid HEX value. Check settings. Should be in format #1abc9c");
       return;
     }
-    
+
     const filePath = await generateQrFile(text, preferences.qrCodeType || "blob", effectiveColor);
     await showToast(ToastStyle.Success, `Saved ${filePath}`);
-  } catch (error: any) {
-    await showToast(ToastStyle.Failure, "Error", error.message);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred";
+    await showToast(ToastStyle.Failure, "Error", errorMessage);
   }
 }
 
