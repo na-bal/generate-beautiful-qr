@@ -2,10 +2,10 @@
 
 This Raycast extension allows you to generate QR codes with custom styling.
 
-<div align="center">
-  <img src="metadata/generate-beautiful-qr-1.png" width="800" />
-  <img src="metadata/generate-beautiful-qr-2.png" width="800" />
-  <img src="metadata/generate-beautiful-qr-3.png" width="800" />
+<div align="center" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+  <img src="metadata/generate-beautiful-qr-1.png" width="250" />
+  <img src="metadata/generate-beautiful-qr-2.png" width="250" />
+  <img src="metadata/generate-beautiful-qr-3.png" width="250" />
 </div>
 
 ## Features
