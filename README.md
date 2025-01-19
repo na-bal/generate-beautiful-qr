@@ -1,5 +1,7 @@
 # QR Code Generator with Stylish
 
+This Raycast extension allows you to generate QR codes with custom styling.
+
 ## Features
 
 - Generate QR codes with custom styling
