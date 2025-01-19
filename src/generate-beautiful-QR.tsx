@@ -4,28 +4,37 @@ import fs from "fs";
 import path from "path";
 import QRCode from "qrcode";
 
-// Функция проверки валидности hex-цвета
+/**
+ * Validates if the provided string is a valid hex color
+ * @param {string} hex - The hex color string to validate
+ * @returns {boolean} True if valid hex color
+ */
 function isValidHexColor(hex: string): boolean {
-  // Принимаем значения типа "#abc" или "#a1b2c3"
+  // Accepts values like "#abc" or "#a1b2c3"
   return /^#(?:[0-9A-Fa-f]{3}){1,2}$/.test(hex.trim());
 }
 
-// Интерфейс настроек, задаваемых через Preferences
+/**
+ * Interface for application preferences
+ * @interface Preferences
+ * @property {string} saveFolder - Directory path for saving QR codes
+ */
 interface Preferences {
   saveFolder: string;
 }
 
-// Получаем настройки из Preferences
+// Get preferences from Preferences
 const preferences = getPreferenceValues<Preferences>();
 
-//
-// Функция формирования имени файла по введённому тексту.
-// Если текст длинее 50 символов, берутся первые 30 и последние 20 символов после очистки от недопустимых символов.
-//
+/**
+ * Generates a sanitized filename from input text
+ * @param {string} inputText - The text to generate filename from
+ * @returns {string} Sanitized filename
+ */
 function generateFileName(inputText: string): string {
-  // Удаляем http:// и https:// из текста
+  // Remove http:// and https:// from text
   const withoutProtocol = inputText.replace(/^(https?:\/\/)/i, "");
-  // Очищаем от недопустимых символов
+  // Clean invalid characters
   const sanitized = withoutProtocol.replace(/[<>:"/\\|?*\x00-\x1F]/g, "_");
   
   if (sanitized.length <= 50) {
@@ -34,9 +43,11 @@ function generateFileName(inputText: string): string {
   return sanitized.substring(0, 30) + sanitized.substring(sanitized.length - 20);
 }
 
-//
-// Функция генерации матрицы QR-кода (одинакова для обоих вариантов)
-//
+/**
+ * Generates QR code matrix from input text
+ * @param {string} text - Text to encode in QR code
+ * @returns {boolean[][]} Matrix representing QR code
+ */
 function generateMatrix(text: string): boolean[][] {
   const qr = QRCode.create(text, { errorCorrectionLevel: "M" });
   const size = qr.modules.size;
@@ -50,10 +61,12 @@ function generateMatrix(text: string): boolean[][] {
   return matrix;
 }
 
-//
-// Классический QR-код: отрисовка отдельных квадратов для каждого заполненного модуля
-// Используется параметр color для выбора цвета заливки модулей
-//
+/**
+ * Generates classic style QR code in SVG format
+ * @param {string} text - Text to encode
+ * @param {string} color - Color for QR code
+ * @returns {string} SVG string
+ */
 function generateClassicQrSvg(text: string, color: string): string {
   const matrix = generateMatrix(text);
   const moduleSize = 30;
@@ -78,9 +91,11 @@ function generateClassicQrSvg(text: string, color: string): string {
   return svgParts.join("");
 }
 
-//
-// Функция объединения смежных ячеек (группировка черных модулей)
-//
+/**
+ * Groups adjacent filled modules using DFS algorithm
+ * @param {boolean[][]} matrix - QR code matrix
+ * @returns {Array<{cells: Array<{row: number, col: number}>}>} Grouped cells
+ */
 function mergeContiguousCellsWithCells(matrix: boolean[][]): { cells: { row: number; col: number }[] }[] {
   const rows = matrix.length;
   const cols = matrix[0].length;
@@ -129,9 +144,12 @@ function mergeContiguousCellsWithCells(matrix: boolean[][]): { cells: { row: num
   return groups;
 }
 
-//
-// Функция генерации точек контура для группы – старая версия (объединение сторон)
-//
+/**
+ * Generates contour points for a group of modules
+ * @param {Array<{row: number, col: number}>} groupCells - Group of cells
+ * @param {number} moduleSize - Size of each module
+ * @returns {Array<{x: number, y: number}>} Contour points
+ */
 function generatePathPointsForGroup(groupCells: { row: number; col: number }[], moduleSize: number): { x: number; y: number }[] {
   const cellSet = new Set(groupCells.map(cell => `${cell.row},${cell.col}`));
   type Point = { x: number; y: number };
@@ -193,9 +211,12 @@ function generatePathPointsForGroup(groupCells: { row: number; col: number }[], 
   return pathPoints;
 }
 
-//
-// Функция сглаживания углов полигона для blob-эффекта
-//
+/**
+ * Creates smooth contours for blob effect
+ * @param {Array<{x: number, y: number}>} points - Points to smooth
+ * @param {number} smoothingRadius - Radius for smoothing
+ * @returns {string} SVG path string
+ */
 function roundPolygon(points: { x: number; y: number }[], smoothingRadius: number): string {
   const len = points.length;
   if (len < 3) return "";
@@ -228,11 +249,13 @@ function roundPolygon(points: { x: number; y: number }[], smoothingRadius: numbe
   return d;
 }
 
-//
-// Функция поиска внутренних дыр (holes) в пределах группы.
-// Вычисляем bounding box по группе (расширенный на 1 модуль), затем ищем белые регионы внутри,
-// которые не касаются границы bounding box – такие области считаются настоящими дырками.
-// Для каждой найденной дырки генерируется сглаженный контур.
+/**
+ * Identifies and generates paths for inner white spaces
+ * @param {Array<{row: number, col: number}>} groupCells - Group of cells
+ * @param {boolean[][]} matrix - QR code matrix
+ * @param {number} moduleSize - Size of each module
+ * @returns {string[]} Array of SVG path strings
+ */
 function getHolesForGroup(groupCells: { row: number; col: number }[], matrix: boolean[][], moduleSize: number): string[] {
   const rows = matrix.length;
   const cols = matrix[0].length;
@@ -244,7 +267,7 @@ function getHolesForGroup(groupCells: { row: number; col: number }[], matrix: bo
     if (cell.col < minCol) minCol = cell.col;
     if (cell.col > maxCol) maxCol = cell.col;
   });
-  // Расширяем bounding box на 1 модуль
+  // Expand bounding box by 1 module
   minRow = Math.max(minRow - 1, 0);
   minCol = Math.max(minCol - 1, 0);
   maxRow = Math.min(maxRow + 1, rows - 1);
@@ -299,10 +322,15 @@ function getHolesForGroup(groupCells: { row: number; col: number }[], matrix: bo
   return holesPaths;
 }
 
-//
-// Функция отрисовки "глаз" QR-кода (finder patterns)
-// Теперь цвет глаз будет таким же, как выбранный цвет QR (color),
-// то есть внешний квадрат и центральный будут залиты в выбранный цвет, а внутренняя область останется белой.
+/**
+ * Generates finder patterns (corner squares) for QR code
+ * @param {number} x - X coordinate
+ * @param {number} y - Y coordinate
+ * @param {number} moduleSize - Size of each module
+ * @param {number} finderSize - Size of finder pattern
+ * @param {string} color - Color of pattern
+ * @returns {string} SVG elements string
+ */
 function drawFinderPattern(x: number, y: number, moduleSize: number, finderSize: number, color: string): string {
   const outerSize = finderSize * moduleSize;
   const outerRx = moduleSize * 0.2;
@@ -316,12 +344,12 @@ function drawFinderPattern(x: number, y: number, moduleSize: number, finderSize:
   return outer + white + center;
 }
 
-//
-// Функция генерации blob‑QR:
-// Для каждой группы, используя generatePathPointsForGroup (объединение контуров),
-// затем сглаживаем контур и вычитаем внутренние дырки посредством fill-rule="evenodd".
-// Дополнительно – накладываем белые модули сверху согласно исходной матрице.
-// Параметр color используется для заливки blob‑областей и глаз QR-кода.
+/**
+ * Generates blob style QR code in SVG format
+ * @param {string} text - Text to encode
+ * @param {string} color - Color for QR code
+ * @returns {string} SVG string
+ */
 function generateMergedQrSvg(text: string, color: string): string {
   const matrix = generateMatrix(text);
   const groups = mergeContiguousCellsWithCells(matrix);
@@ -332,19 +360,19 @@ function generateMergedQrSvg(text: string, color: string): string {
   svgParts.push(`<rect width="${size}" height="${size}" fill="#FFFFFF"/>`);
   
   groups.forEach((group) => {
-    // Получаем внешний контур для группы (сглаженный)
+    // Get outer contour for the group (smoothed)
     const rawPoints = generatePathPointsForGroup(group.cells, moduleSize);
     const smoothingRadius = moduleSize * 0.3;
     const outerPath = roundPolygon(rawPoints, smoothingRadius);
-    // Вычисляем внутренние дырки для этой группы
+    // Calculate inner holes for this group
     const holesPaths = getHolesForGroup(group.cells, matrix, moduleSize);
-    // Объединяем внешний контур и подконтуры дыр (без дополнительной обводки)
+    // Combine outer contour and hole subpaths (without additional stroke)
     const combinedPath = outerPath + " " + holesPaths.join(" ");
     svgParts.push(`<path d="${combinedPath}" fill="${color}" />`);
   });
   
-  // Накладываем белые модули сверху согласно исходной матрице,
-  // чтобы восстановить области, где изначально должен быть белый фон.
+  // Overlay white modules on top according to the original matrix,
+  // to restore areas that should originally be white background.
   const matrixData = generateMatrix(text);
   for (let row = 0; row < matrixData.length; row++) {
     for (let col = 0; col < matrixData[row].length; col++) {
@@ -356,7 +384,7 @@ function generateMergedQrSvg(text: string, color: string): string {
     }
   }
   
-  // Отрисовываем глаза (finder patterns) с выбранным цветом
+  // Draw finder patterns (eyes) with the selected color
   const finderSize = 7;
   svgParts.push(drawFinderPattern(0, 0, moduleSize, finderSize, color));
   svgParts.push(drawFinderPattern(size - finderSize * moduleSize, 0, moduleSize, finderSize, color));
@@ -366,40 +394,46 @@ function generateMergedQrSvg(text: string, color: string): string {
   return svgParts.join("");
 }
 
-//
-// Функция сохранения SVG в файл, имя файла формируется на основе введённого текста.
-// Если текст длинее 50 символов, берутся первые 30 и последние 20 символов после очистки от недопустимых символов.
+/**
+ * Creates and saves QR code file
+ * @param {string} text - Text to encode
+ * @param {("classic"|"blob")} qrType - Type of QR code
+ * @param {string} color - Color for QR code
+ * @returns {Promise<string>} Path to saved file
+ */
 function generateQrFile(text: string, qrType: "classic" | "blob", color: string): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
       const svg = qrType === "classic" ? generateClassicQrSvg(text, color) : generateMergedQrSvg(text, color);
       const baseName = generateFileName(text);
-      // Выбираем имя файла с эмодзи для демонстрации (при желании можно убрать эмодзи)
       const fileName = qrType === "classic" ? `👵qr_${baseName}.svg` : `🦆qr_${baseName}.svg`;
-      
-      // Предполагаем, что preferences.saveFolder уже получен ранее через getPreferenceValues
-      // Если preferences.saveFolder не определён, можно использовать значение по умолчанию
+    
+      // If preferences.saveFolder is not defined, use default value
       const folder = preferences.saveFolder || (process.env.HOME || process.env.USERPROFILE || "") + "/Downloads";
       const filePath = path.join(folder, fileName);
       
       fs.writeFileSync(filePath, svg, "utf-8");
-      console.log(`Файл успешно сохранён: ${filePath}`);
       resolve(filePath);
     } catch (error: any) {
-      console.error("Ошибка при создании QR-кода:", error);
-      reject(new Error("Не удалось создать QR-код."));
+      console.error("Error creating QR code:", error);
+      reject(new Error("Failed to create QR code."));
     }
   });
 }
 
-//
-// Компонент React для Raycast
-//
+/**
+ * Main React component for Raycast extension
+ * Provides UI for QR code generation with various customization options
+ * @returns {JSX.Element} Form component
+ */
 export default function Command() {
   const [input, setInput] = useState("");
   const [qrType, setQrType] = useState<"classic" | "blob">("blob");
   
-  // Предустановленные опции цветов — модные варианты
+  /**
+   * Predefined color options for QR code
+   * @type {Object.<PresetOption, string>}
+   */
   type PresetOption = "MidnightBlue" | "JustBlack" | "DeepPurple" | "Emerald" | "VibrantOrange" | "Turquoise";
   const presetOptions: { [key in PresetOption]: string } = {
     MidnightBlue: "#2c3e50",
@@ -410,15 +444,15 @@ export default function Command() {
     Turquoise: "#1abc9c",
   };
   
-  // Поле для пользовательского цвета (custom)
+  // Field for custom color (custom)
   const [customColor, setCustomColor] = useState("");
-  // Выпадающий список с предустановленными цветами
+  // Dropdown list with preset colors
   const [presetOption, setPresetOption] = useState<PresetOption>("MidnightBlue");
 
-  // Итоговый эффективный цвет: если customColor не пустой, он имеет приоритет
+  // Effective color: if customColor is not empty, it takes priority
   const effectiveColor = customColor.trim() !== "" ? customColor.trim() : presetOptions[presetOption];
 
-  // ★ Добавленный useEffect для автоматической вставки текста из буфера обмена
+  // Added useEffect for automatic text insertion from clipboard
   useEffect(() => {
     async function loadClipboardText() {
       const text = await Clipboard.readText();
@@ -431,22 +465,22 @@ export default function Command() {
 
   const handleSubmit = async () => {
     if (!input) {
-      await showToast(ToastStyle.Failure, "Ошибка", "Поле ввода не должно быть пустым.");
+      await showToast(ToastStyle.Failure, "Error", "Input field cannot be empty.");
       return;
     }
     
-    // Если пользователь ввёл значение customColor, проверяем его валидность
+    // If user entered value customColor, check its validity
     if (customColor.trim() !== "" && !isValidHexColor(customColor)) {
-      await showToast(ToastStyle.Failure, "Ошибка", "Пожалуйста, введите корректное hex-значение (например, #1abc9c).");
+      await showToast(ToastStyle.Failure, "Error", "Please enter a valid hex color (e.g., #1abc9c).");
       return;
     }
     
     try {
       const filePath = await generateQrFile(input, qrType, effectiveColor);
-      await showToast(ToastStyle.Success, "Успех!", `Сохранено: ${filePath}`);
+      await showToast(ToastStyle.Success, "Saved to:", filePath);
     } catch (err: any) {
-      console.error("Ошибка в handleSubmit:", err);
-      await showToast(ToastStyle.Failure, "Ошибка", err.message);
+      console.error("Error in handleSubmit:", err);
+      await showToast(ToastStyle.Failure, "Error", err.message);
     }
   };
 
@@ -454,30 +488,28 @@ export default function Command() {
     <Form
       actions={
         <ActionPanel>
-          <Action title="Сгенерировать QR-код" onAction={handleSubmit} />
+          <Action title="Generate QR Code" onAction={handleSubmit} />
         </ActionPanel>
       }
     >
       <Form.TextField
         id="input"
-        title="Текст или URL"
-        placeholder="Введите текст или URL"
+        title="Text or URL"
+        placeholder="Enter text or URL"
         value={input}
         onChange={setInput}
       />
       <Form.Dropdown
-        label="Тип QR-кода"
-        title="Тип QR-кода"
+        title="Shape"
         id="qrType"
         value={qrType}
         onChange={(val) => setQrType(val as "classic" | "blob")}
       >
-        <Form.Dropdown.Item value="classic" title="👵 Classic square" />
-        <Form.Dropdown.Item value="blob" title="🦆 Blob and rounded" />
+        <Form.Dropdown.Item value="classic" title="👵 Classic Square" />
+        <Form.Dropdown.Item value="blob" title="🦆 Blob and Rounded" />
       </Form.Dropdown>
       <Form.Dropdown
-        label="Предустановленный цвет"
-        title="Предустановленный цвет"
+        title="Color"
         id="presetColor"
         value={presetOption}
         onChange={(val) => setPresetOption(val as PresetOption)}
@@ -491,8 +523,8 @@ export default function Command() {
       </Form.Dropdown>
       <Form.TextField
         id="customColor"
-        title="Пользовательский цвет (hex)"
-        info="Если задан, имеет приоритет"
+        title="Custom Color (hex)"
+        info="If set, takes priority"
         placeholder="#1abc9c"
         value={customColor}
         onChange={setCustomColor}

@@ -1,6 +1,6 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "generate-beautiful-QR",
+  "name": "generate-beautiful-qr",
   "title": "QR-code generator",
   "description": "Fast and beautiful QR-code generator",
   "icon": "extension-icon.png",
@@ -19,8 +19,8 @@
       "preferences": [
         {
           "name": "saveFolder",
-          "title": "Папка для сохранения",
-          "description": "Путь к папке, куда сохраняется QR-код",
+          "title": "Save folder",
+          "description": "Path to folder where QR-code will be saved",
           "default": "~/Downloads",
           "type": "directory",
           "required": false
@@ -35,20 +35,20 @@
       "preferences": [
       {
         "name": "qrCodeType",
-        "title": "Тип QR-кода",
-        "description": "Выберите тип QR-кода: classic или blob",
+        "title": "Shape",
+        "description": "Choose QR-code shape: 👵 Classic Square or 🦆 Blob and Rounded",
         "default": "blob",
         "type": "dropdown",
         "required": false,
         "data": [
-          { "title": "Classic", "value": "classic" },
-          { "title": "Blob", "value": "blob" }
+          { "title": "👵 Classic Square", "value": "classic" },
+          { "title": "🦆 Blob and Rounded", "value": "blob" }
         ]
       },
       {
         "name": "qrCodeColor",
-        "title": "Цвет QR-кода",
-        "description": "Hex-значение цвета для QR-кода",
+        "title": "Color",
+        "description": "Choose QR-code color",
         "default": "#2c3e50",
         "type": "dropdown",
         "required": false,
@@ -63,8 +63,8 @@
       },
       {
         "name": "hexColor",
-        "title": "Цвет QR-кода",
-        "description": "Hex-значение цвета для QR-кода. Если не задан, будет использован цвет из дропдауна.",
+        "title": "Custom Color (hex)",
+        "description": "If set, takes priority",
         "default": "",
         "placeholder": "#1abc9c",
         "type": "textfield",
@@ -72,8 +72,8 @@
       },
       {
         "name": "saveFolder",
-        "title": "Папка для сохранения",
-        "description": "Путь к папке, куда сохраняется QR-код",
+        "title": "Save folder",
+        "description": "Path to folder where QR-code will be saved",
         "default": "~/Downloads",
         "type": "directory",
         "required": false
@@ -85,14 +85,10 @@
     "@raycast/api": "^1.86.1",
     "@raycast/utils": "^1.17.0",
     "@svgdotjs/svg.js": "^3.2.4",
-    "awesome-qr": "^2.1.5-rc.0",
     "canvas": "^3.0.1",
-    "jsdom": "^26.0.0",
     "marchingsquares": "^1.3.3",
-    "qr-code-styling": "^1.9.0",
     "qrcode": "^1.5.4",
-    "svg-path-parser": "^1.1.0",
-    "xml-js": "^1.6.11"
+    "svg-path-parser": "^1.1.0"
   },
   "devDependencies": {
     "@raycast/eslint-config": "^1.0.11",

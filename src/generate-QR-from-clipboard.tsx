@@ -1,40 +1,43 @@
-// generate-QR-from-clipboard.ts
-
-// ★ Изменение: Убрали импорт React, так как в no-view режиме он не нужен.
-import { getPreferenceValues, Clipboard, showHUD, ToastStyle } from "@raycast/api";
+import { getPreferenceValues, Clipboard, showHUD, showToast, ToastStyle } from "@raycast/api";
 import fs from "fs";
 import path from "path";
 import QRCode from "qrcode";
 
-// ★ Изменение: Убрана зависимость от хуков (useState, useEffect).
-
-// Функция проверки валидности hex-цвета (оставляем без изменений)
+/**
+ * Validates if the provided string is a valid hex color
+ */
 function isValidHexColor(hex: string): boolean {
   return /^#(?:[0-9A-Fa-f]{3}){1,2}$/.test(hex.trim());
 }
 
-// Интерфейс настроек, задаваемых через Preferences
+/**
+ * Interface for application preferences
+ * @interface Preferences
+ * @property {("classic"|"blob")} qrCodeType - Type of QR code to generate
+ * @property {string} qrCodeColor - Preset color selection from dropdown
+ * @property {string} hexColor - Custom hex color (takes priority if set)
+ * @property {string} saveFolder - Directory path for saving QR codes
+ */
 interface Preferences {
   qrCodeType: "classic" | "blob";
-  qrCodeColor: string;  // Выбор из дропдауна
-  hexColor: string;    // HEX-цвет, который будет иметь приоритет, если задан
+  qrCodeColor: string;
+  hexColor: string;
   saveFolder: string;
 }
 
-// Получаем настройки из Preferences
+// Get preferences from Preferences
 const preferences = getPreferenceValues<Preferences>();
 
-// Выбираем цвет: если задан HEX, то используем его, иначе используем цвет из дропдауна
+// Choose color: if hex is set, use it, otherwise use color from dropdown
 const effectiveColor =
   preferences.hexColor && preferences.hexColor.trim() !== ""
     ? preferences.hexColor
     : preferences.qrCodeColor || "#2c3e50";
 
-console.log("Effective Color:", effectiveColor);
-
 /**
- * Формирует имя файла по входному тексту.
- * Если текст больше 50 символов, берутся первые 30 и последние 20 символов после очистки.
+ * Generates a sanitized filename from input text
+ * @param {string} inputText - The text to generate filename from
+ * @returns {string} Sanitized filename
  */
 function generateFileName(inputText: string): string {
   const withoutProtocol = inputText.replace(/^(https?:\/\/)/i, "");
@@ -43,7 +46,9 @@ function generateFileName(inputText: string): string {
 }
 
 /**
- * Генерирует матрицу QR-кода.
+ * Generates QR code matrix from input text
+ * @param {string} text - Text to encode in QR code
+ * @returns {boolean[][]} Matrix representing QR code
  */
 function generateMatrix(text: string): boolean[][] {
   const qr = QRCode.create(text, { errorCorrectionLevel: "M" });
@@ -59,7 +64,10 @@ function generateMatrix(text: string): boolean[][] {
 }
 
 /**
- * Генерирует классический QR-код в формате SVG.
+ * Generates classic style QR code in SVG format
+ * @param {string} text - Text to encode
+ * @param {string} color - Color for QR code
+ * @returns {string} SVG string
  */
 function generateClassicQrSvg(text: string, color: string): string {
   const matrix = generateMatrix(text);
@@ -82,7 +90,9 @@ function generateClassicQrSvg(text: string, color: string): string {
 }
 
 /**
- * Группирует смежные заполненные модули (true) с помощью DFS.
+ * Groups adjacent filled modules using DFS algorithm
+ * @param {boolean[][]} matrix - QR code matrix
+ * @returns {Array<{cells: Array<{row: number, col: number}>}>} Grouped cells
  */
 function mergeContiguousCellsWithCells(matrix: boolean[][]): { cells: { row: number; col: number }[] }[] {
   const rows = matrix.length;
@@ -126,7 +136,10 @@ function mergeContiguousCellsWithCells(matrix: boolean[][]): { cells: { row: num
 }
 
 /**
- * Генерирует точки контура для группы заполненных модулей.
+ * Generates contour points for a group of modules
+ * @param {Array<{row: number, col: number}>} groupCells - Group of cells
+ * @param {number} moduleSize - Size of each module
+ * @returns {Array<{x: number, y: number}>} Contour points
  */
 function generatePathPointsForGroup(groupCells: { row: number; col: number }[], moduleSize: number): { x: number; y: number }[] {
   const cellSet = new Set(groupCells.map(cell => `${cell.row},${cell.col}`));
@@ -177,7 +190,10 @@ function generatePathPointsForGroup(groupCells: { row: number; col: number }[], 
 }
 
 /**
- * Сглаживает контур, создавая blob‑эффект.
+ * Creates smooth contours for blob effect
+ * @param {Array<{x: number, y: number}>} points - Points to smooth
+ * @param {number} smoothingRadius - Radius for smoothing
+ * @returns {string} SVG path string
  */
 function roundPolygon(points: { x: number; y: number }[], smoothingRadius: number): string {
   const len = points.length;
@@ -208,7 +224,11 @@ function roundPolygon(points: { x: number; y: number }[], smoothingRadius: numbe
 }
 
 /**
- * Ищет внутренние "дырки" (белые области) внутри группы.
+ * Identifies and generates paths for inner white spaces
+ * @param {Array<{row: number, col: number}>} groupCells - Group of cells
+ * @param {boolean[][]} matrix - QR code matrix
+ * @param {number} moduleSize - Size of each module
+ * @returns {string[]} Array of SVG path strings
  */
 function getHolesForGroup(groupCells: { row: number; col: number }[], matrix: boolean[][], moduleSize: number): string[] {
   const rows = matrix.length;
@@ -276,7 +296,13 @@ function getHolesForGroup(groupCells: { row: number; col: number }[], matrix: bo
 }
 
 /**
- * Отрисовывает Finder Patterns (глаза QR-кода).
+ * Generates finder patterns (corner squares) for QR code
+ * @param {number} x - X coordinate
+ * @param {number} y - Y coordinate
+ * @param {number} moduleSize - Size of each module
+ * @param {number} finderSize - Size of finder pattern
+ * @param {string} color - Color of pattern
+ * @returns {string} SVG elements string
  */
 function drawFinderPattern(x: number, y: number, moduleSize: number, finderSize: number, color: string): string {
   const outerSize = finderSize * moduleSize;
@@ -292,7 +318,10 @@ function drawFinderPattern(x: number, y: number, moduleSize: number, finderSize:
 }
 
 /**
- * Генерирует Blob‑QR-код в формате SVG.
+ * Generates blob style QR code in SVG format
+ * @param {string} text - Text to encode
+ * @param {string} color - Color for QR code
+ * @returns {string} SVG string
  */
 function generateMergedQrSvg(text: string, color: string): string {
   const matrix = generateMatrix(text);
@@ -333,7 +362,11 @@ function generateMergedQrSvg(text: string, color: string): string {
 }
 
 /**
- * Генерирует файл SVG с QR-кодом.
+ * Creates and saves QR code file
+ * @param {string} text - Text to encode
+ * @param {("classic"|"blob")} qrType - Type of QR code
+ * @param {string} color - Color for QR code
+ * @returns {Promise<string>} Path to saved file
  */
 function generateQrFile(text: string, qrType: "classic" | "blob", color: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -344,44 +377,38 @@ function generateQrFile(text: string, qrType: "classic" | "blob", color: string)
       const downloadsPath = preferences.saveFolder;
       const filePath = path.join(downloadsPath, fileName);
       fs.writeFileSync(filePath, svg, "utf-8");
-      console.log(`Файл успешно сохранён: ${filePath}`);
       resolve(filePath);
     } catch (error: any) {
-      console.error("Ошибка при создании QR-кода:", error);
-      reject(new Error("Не удалось создать QR-код."));
+      console.error("Error creating QR code:", error);
+      reject(new Error("Failed to create QR code."));
     }
   });
 }
 
 /**
- * ★ Основная асинхронная функция команды для режима no-view.
- * В данном случае отсутствует рендер компонентов и использование хуков.
+ * Main function for Raycast command
+ * Handles clipboard reading and QR code generation
+ * @returns {Promise<void>}
  */
 async function main() {
   try {
     const text = await Clipboard.readText();
     if (!text) {
-      await showHUD("Ошибка: Буфер обмена пуст");
+      await showToast(ToastStyle.Failure, "Clipboard is empty", "Please copy some text before running this command.");
       return;
     }
     
-    // Проверка валидности HEX-цвета из настроек
+    // Check validity of HEX color from settings
     if (preferences.hexColor.trim() !== "" && !isValidHexColor(preferences.hexColor)) {
-      await showHUD("Ошибка: Некорректное HEX-значение. Проверьте настройки. Должно быть в формате #1abc9c");
+      await showToast(ToastStyle.Failure, "Error. Invalid HEX value. Check settings. Should be in format #1abc9c");
       return;
     }
     
     const filePath = await generateQrFile(text, preferences.qrCodeType || "blob", effectiveColor);
-    await showHUD(`Сохранено: ${filePath}`);
-    console.log("Effective Color:", effectiveColor);
+    await showToast(ToastStyle.Success, `Saved ${filePath}`);
   } catch (error: any) {
-    await showHUD(`Ошибка: ${error.message}`);
+    await showToast(ToastStyle.Failure, "Error", error.message);
   }
 }
 
-// ★ Основное отличие: запускаем main() немедленно.
-// В режиме no-view окно не отображается, поэтому возвращать UI не нужно.
-// main();
-
-// ★ Экспортируем main как default, чтобы Raycast мог запустить команду.
 export default main;
